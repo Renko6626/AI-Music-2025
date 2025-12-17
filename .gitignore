@@ -211,8 +211,6 @@ __marimo__/
 *.pth
 !music_gpt_v1_epoch_150.pth
 !music_gpt_nano_datav3_best.pth
-# !music_gpt_standard_datav3_best.pth
-
 
 # 所有.pt文件
 *.pt
