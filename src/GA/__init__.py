@@ -1,2 +1,2 @@
 from .ga_engine import MusicGeneticOptimizer
-from .evaluator import MusicEvaluator, RuleBasedEvaluator, BasicRules
+from .evaluator import MusicEvaluator, RuleBasedEvaluator, BasicRules, ClassicalRules,PentatonicRules
