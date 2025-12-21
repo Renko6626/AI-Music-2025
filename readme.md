@@ -8,6 +8,7 @@
 - [项目概述](#项目概述)
 - [任务要求](#任务要求)
 - [最新进展](#最新进展)
+- [一点起名的想法](#一点起名的想法)
 - [TODO](#todo)
 - [快速上手（给不写代码也可能不懂音乐的人）](#快速上手给不写代码也可能不懂音乐的人)
   - [安装环境（假设你用的是Windows电脑）](#安装环境假设你用的是windows电脑)
@@ -92,6 +93,9 @@
 1. 安装Python。前往[Python官网](https://www.python.org/downloads/)，点击页面上最显眼的"Download Python 3.xx.x"按钮，随后将页面滑到底，下载Windows Installer (64-bit)文件。双击运行该安装包进行安装。安装时全部选择默认选项，但是一定要勾上“将Python添加到环境变量”的选框。
 2. [项目主页](https://github.com/Renko6626/AI-Music-2025)右上角的绿色Code按钮下拉，下载本项目的ZIP文件，然后解压到你的电脑中。
 3. 在AI-Music-2025文件夹下，Shift加右键，选择“在此处打开命令窗口”（也可以是powershell窗口）。输入命令`pip install -r requirements.txt`并回车执行，pip将自动安装运行本项目所需的全部依赖包。
+4. 如果你的计算机存在显卡，并且你希望使用GPU加速模型运行，请前往[PyTorch官网](https://pytorch.org/get-started/locally/)的“Get Started”页面，选择适合你电脑的CUDA版本，然后复制对应的pip安装命令，在命令行窗口中执行安装PyTorch和torchvision。
+5. 如果你想使用MIDI合成器功能，但是提示你的电脑没有安装FluidSynth，请安装[FluidSynth](https://www.fluidsynth.org/)。下载Windows版的安装包，双击运行进行安装。安装完成后，将FluidSynth的安装目录下的`bin`文件夹路径添加到系统环境变量Path中。
+6. 如果你想使用五线谱生成功能，请安装[Music21](https://web.mit.edu/music21/doc/installing/installingWindows.html)和[MuseScore](https://musescore.org/zh-hans/download)。安装完成后，在Music21的设置中，将MuseScore的安装路径添加进去。
 
 ### 快速玩transformer生成
 
