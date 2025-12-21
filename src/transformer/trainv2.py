@@ -103,7 +103,7 @@ CONFIG_heavy = {
     "checkpoint_dir": "checkpoints_gpt",
     "log_dir": "logs_gpt_heavy",
     "batch_size": 1024, # PER GPU batch size
-    "epochs": 400,
+    "epochs": 150,
     "learning_rate": 8e-4,
     "num_workers": 4, # A safe and efficient starting point for multi-GPU
     "model_config": GPT_CONFIG_heavy,
