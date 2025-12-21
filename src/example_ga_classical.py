@@ -41,7 +41,7 @@ evaluator.add_rule(ClassicalRules.leading_tone_resolution, weight=0.9)
 
 ga_optimizer = MusicGeneticOptimizer(
     pop_size=100,
-    n_generations=500,
+    n_generations=800,
     elite_ratio=0.2,
     prob_point_mutation=0.1,
     prob_transposition=0,
@@ -50,9 +50,6 @@ ga_optimizer = MusicGeneticOptimizer(
     evaluator_model=evaluator,
     device='cpu'
 )
-
-# 初始化音频生成器
-synth = Synthesizer(strategy=SineStrategy())
 
 # 初始化种群
 ga_optimizer._initialize_population()
@@ -67,5 +64,6 @@ best_melody = MelodySequence(best_melody_grid)
 print("最优旋律序列的音符网格:", best_melody.grid)
 best_melody.save_staff(os.path.join(EXAMPLE_PATH, "best_melody_classical.png"))
 # 导出为wav文件试听
+synth = Synthesizer(strategy=SineStrategy())
 synth.render(best_melody.grid, bpm=120, output_path=os.path.join(EXAMPLE_PATH, "best_melody_classical.wav"))
 print("已保存最优旋律的合成音频为 best_melody_classical.wav")

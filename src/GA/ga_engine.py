@@ -1,6 +1,4 @@
 import numpy as np
-import copy
-import random
 # 确保 fix_grid 已经从 MusicRep 导入 (如果没导入，请把之前的 repair 逻辑放回来)
 from MusicRep import MelodySequence, MusicConfig, fixGrid
 
