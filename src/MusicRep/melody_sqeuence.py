@@ -225,11 +225,15 @@ class MelodySequence:
         需要安装music21并配置有musescore或lilypond。如果没有合适的配置，此函数将什么也不做。
         """
         try:
-            from music21 import stream, note, meter, tempo, instrument
+            from music21 import stream, note, meter, tempo, instrument, key
         except ImportError as e:
             print("未能导入Music21", e)
             return
+        from GA.evaluator import ClassicalRules
+        best_tonic, best_mode, _ = ClassicalRules._best_key_major_or_harmonic_minor(self.grid)
 
+        key_sig = key.Key(note.Note(best_tonic+60), 'major' if best_mode == 'major' else 'minor')
+        pitch_class=ClassicalRules._scale_pitch_classes(best_tonic, best_mode)
         score = stream.Score()
         part = stream.Part()
         part.append(instrument.Piano())
@@ -238,6 +242,7 @@ class MelodySequence:
         part.append(ts)
         mm = tempo.MetronomeMark(number=MusicConfig.TEMPO)
         part.append(mm)
+        part.append(key_sig)
 
         # 每个 step 是八分音符 => quarterLength = 1 / STEPS_PER_BEAT
         step_quarter = 1.0 / MusicConfig.STEPS_PER_BEAT
@@ -255,6 +260,20 @@ class MelodySequence:
                 el = note.Rest()
             else:
                 el = note.Note(pitch)
+                # 如果el需要升降号或还原号，即不符合当前调性的调号，尝试转换
+                if key_sig.getScale().getScaleDegreeFromPitch(el) is None:
+                    if el.pitch.accidental.name=='sharp' or (el.pitch.accidental.name=='natural') and (el.pitch.name[0] in 'EB'):
+                        other_el=note.Note(pitch+1)
+                        other_el.pitch.accidental='flat'
+                        assert el.pitch.midi==other_el.pitch.midi
+                        if key_sig.getScale().getScaleDegreeFromPitch(other_el) is not None:
+                            el=other_el
+                    if el.pitch.accidental.name=='flat' or el.pitch.accidental.name=='natural' and (el.pitch.name[0] in 'FC'):
+                        other_el=note.Note(pitch-1)
+                        other_el.pitch.accidental='sharp'
+                        assert el.pitch.midi==other_el.pitch.midi
+                        if key_sig.getScale().getScaleDegreeFromPitch(other_el) is not None:
+                            el=other_el
             el.duration.quarterLength = qlen
             part.append(el)
 
@@ -287,15 +306,14 @@ class MelodySequence:
 
         score.append(part)
 
-        # 清理不必要的还原号
-        # 假设为C大调
+        # 清理不必要的升降号和还原号
         accidentals=set()
         for elem in score.recurse().notes:
             if elem.pitch.accidental is not None:
                 # 获取音高名（如 'C', 'D#'）
                 pitch_name = elem.pitch.name
-                # 判断：如果这个音在调性中是自然的（alter为0），却带有还原号，则隐藏它。假设C大调后这步不必要
-                if elem.pitch.accidental.name == 'natural':
+                # 判断：如果这个音在调性中是自然的，则隐藏它。不准使用getRealizedPitches
+                if key_sig.getScale().getScaleDegreeFromPitch(elem.pitch) is not None:
                     if pitch_name[0] not in accidentals:
                         elem.pitch.accidental.displayStatus = False
                     else:
