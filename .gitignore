@@ -240,3 +240,6 @@ src/transformer/dataset/data/
 
 # 所有zip文件
 *.zip
+
+# 整个evolution_results目录
+src/evolution_results/
