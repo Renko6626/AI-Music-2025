@@ -1,71 +1,21 @@
 import numpy as np
-from abc import ABC, abstractmethod
-from typing import List, Callable, Dict, Union
+from typing import List, Callable
 from MusicRep import MusicConfig
+from .ga_framework import MultiRuleEvaluator
 
-# 尝试导入 PyTorch，如果没有安装也不影响规则评估器的使用
-try:
-    import torch
-    import torch.nn as nn
-    HAS_TORCH = True
-except ImportError:
-    HAS_TORCH = False
+__all__ = [
+    "BasicRules",
+    "PentatonicRules",
+    "ClassicalRules",
+    "build_basic_evaluator",
+    "build_pentatonic_evaluator",
+    "build_classical_evaluator",
+]
 
 # ==========================================
 # 1. 抽象基类 (Interface)
 # ==========================================
-class MusicEvaluator(ABC):
-    """
-    所有评估器的基类。
-    """
-    @abstractmethod
-    def evaluate(self, population_grid: np.ndarray) -> np.ndarray:
-        """
-        核心接口。
-        
-        Args:
-            population_grid: 形状为 (pop_size, seq_len) 的 Numpy 整数数组。
-            
-        Returns:
-            scores: 形状为 (pop_size,) 的 Numpy 浮点数组，表示适应度分数。
-        """
-        pass
-
-
-class RuleBasedEvaluator(MusicEvaluator):
-    """
-    使用一组加权的 Python 函数来评估旋律序列的评估器。
-    这玩意是随便瞎写的，主要是测试遗传算法流程，实际我们要好好写它
-    """
-    def __init__(self):
-        self.rules: List[Callable] = []
-        self.weights: List[float] = []
-
-    def add_rule(self, rule_func: Callable[[np.ndarray], float], weight: float = 1.0):
-        """
-        注册一个新规则。
-        rule_func: 接收单个 grid (shape: 32,)，返回 float 分数。
-        """
-        self.rules.append(rule_func)
-        self.weights.append(weight)
-        return self # 支持链式调用
-
-    def evaluate(self, population_grid: np.ndarray) -> np.ndarray:
-        pop_size = len(population_grid)
-        scores = np.zeros(pop_size)
-
-        # 遍历种群中的每个个体
-        for i in range(pop_size):
-            individual_grid = population_grid[i]
-            total_score = 0.0
-            
-            # 遍历所有规则进行加权求和
-            for rule, weight in zip(self.rules, self.weights):
-                total_score += rule(individual_grid) * weight
-            
-            scores[i] = total_score
-            
-        return scores
+# 旧版基类与评估器已移除。请直接将下列规则函数注册到 MultiRuleEvaluator。
 
 # ==========================================
 # 3. 预定义的通用规则库 (Common Rules)
@@ -814,5 +764,54 @@ class ClassicalRules:
             return 0.8
 
         return 0.0
+
+# =========================
+# 便捷构造器：根据一组规则创建 MultiRuleEvaluator
+# =========================
+
+def build_basic_evaluator() -> MultiRuleEvaluator:
+    ev = MultiRuleEvaluator()
+    ev.register(BasicRules.pitch_in_key_c_major, weight=0.8, name="in_C_major")
+    ev.register(BasicRules.rhythmic_variety, weight=0.7, name="rhythm_variety")
+    ev.register(BasicRules.smooth_contour, weight=0.8, name="smooth_contour")
+    return ev
+
+def build_pentatonic_evaluator() -> MultiRuleEvaluator:
+    ev = MultiRuleEvaluator()
+    ev.register(PentatonicRules.pentatonic_fit, weight=2.0, name="pentatonic_fit")
+    ev.register(PentatonicRules.stepwise_motion_preference, weight=1.4, name="stepwise_motion")
+    ev.register(PentatonicRules.melodic_flow, weight=1.0, name="melodic_flow")
+    ev.register(PentatonicRules.contour_variation_reward, weight=0.9, name="contour_variation")
+    ev.register(PentatonicRules.overlong_note_penalty, weight=1.3, name="overlong_penalty")
+    ev.register(PentatonicRules.rest_sparsity_penalty, weight=1.1, name="rest_sparsity")
+    ev.register(PentatonicRules.note_density_target, weight=1.0, name="note_density")
+    ev.register(PentatonicRules.register_balance, weight=0.8, name="register_balance")
+    return ev
+
+def build_classical_evaluator() -> MultiRuleEvaluator:
+    ev = MultiRuleEvaluator()
+    # Layer A
+    ev.register(ClassicalRules.key_fit_best_of_24, weight=2.0, name="key_fit")
+    ev.register(ClassicalRules.interval_stepwise_preference, weight=1.2, name="stepwise_pref")
+    ev.register(ClassicalRules.melodic_range_score, weight=1.0, name="range_score")
+    ev.register(ClassicalRules.rest_and_long_rest_penalty, weight=1.0, name="rest_penalty")
+    ev.register(ClassicalRules.max_consecutive_rest_limit, weight=0.6, name="rest_limit")
+    # Layer B
+    ev.register(ClassicalRules.phrase_start_on_strongbeat, weight=0.6, name="phrase_start")
+    ev.register(ClassicalRules.cadence_end_stable_and_long, weight=1.2, name="cadence_end")
+    ev.register(ClassicalRules.primary_degree_ratio, weight=1.0, name="primary_degrees")
+    ev.register(ClassicalRules.syncopation_penalty, weight=1.0, name="syncopation")
+    ev.register(ClassicalRules.chromatic_semitone_overuse_penalty, weight=0.6, name="chromatic_penalty")
+    ev.register(ClassicalRules.bar_attack_density_smoothness, weight=0.8, name="bar_density_smooth")
+    # Layer C
+    ev.register(ClassicalRules.note_density_target, weight=1.0, name="note_density_target")
+    ev.register(ClassicalRules.turning_points_target, weight=0.8, name="turning_points")
+    ev.register(ClassicalRules.climax_position_score, weight=0.8, name="climax_pos")
+    ev.register(ClassicalRules.leading_tone_resolution, weight=0.8, name="leading_resolution")
+    ev.register(ClassicalRules.dotted_rhythm_reward, weight=0.3, name="dotted_rhythm")
+    ev.register(ClassicalRules.pre_barline_rest_reward, weight=0.4, name="pre_barline_rest")
+    ev.register(ClassicalRules.contour_consistency_with_head, weight=0.7, name="contour_consistency")
+    ev.register(ClassicalRules.cadence_motion_reward, weight=0.8, name="cadence_motion")
+    return ev
     
 
