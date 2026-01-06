@@ -19,7 +19,8 @@ from GA.default_crossover import OnePointCrossover
 
 def run_example():
     # 为了结果可复现，添加随机数种子
-    np.random.seed(int.from_bytes("SYBNB!".encode()[:4], 'big'))
+    # np.random.seed(int.from_bytes("SYBNB!".encode()[:4], 'big'))
+    # 为了每次运行都能看到不同结果，不需要设置随机数种子
 
     EXAMPLE_PATH = "example_outputs/ga_example/"
     if not os.path.exists(EXAMPLE_PATH):
@@ -60,6 +61,9 @@ def run_example():
     best_melody_grid = best_ind.data
     best_melody = MelodySequence(best_melody_grid)
     print("最优旋律序列的音符网格:", best_melody.grid)
+
+    best_melody.save_midi(os.path.join(EXAMPLE_PATH, "best_melody_classical.mid"))
+    print("已保存最优旋律的MIDI文件为 best_melody_classical.mid")
 
     best_melody.save_staff(os.path.join(EXAMPLE_PATH, "best_melody_classical.png"))
 

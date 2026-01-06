@@ -305,16 +305,16 @@ def main():
             filename_base = os.path.join(OUTPUT_DIR, f"gen_{gen+1:03d}_fit_{best_ind.fitness:.2f}")
             
             # 转换为 MelodySequence
-            #melody = MelodySequence(best_ind.data)
+            melody = MelodySequence(best_ind.data)
             
             # 保存图片 (如果有实现 save_staff)
-            # melody.save_staff(filename_base + ".png")
+            melody.save_staff(filename_base + ".png")
             
             # 保存音频
             try:
                 synth.render(best_ind.data, bpm=120, output_path=filename_base + ".wav")
                 # 同时也保存 MIDI 以便后续分析
-                #melody.to_midi(filename_base + ".mid")
+                melody.save_midi(filename_base + ".mid")
                 print(f"   💾 Snapshot saved: {filename_base}.wav")
             except Exception as e:
                 print(f"   ⚠️ Audio render failed: {e}")

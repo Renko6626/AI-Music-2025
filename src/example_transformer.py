@@ -19,9 +19,6 @@ from transformer import GPTMusicEvaluator, tokens_to_melodygrid, MUSICREP_AVAILA
 if MUSICREP_AVAILABLE:
     from MusicRep.synthesizer import Synthesizer, StringStrategy
     from MusicRep.melody_sqeuence import MelodySequence, MusicConfig
-    from MusicRep.jianpu import jianpu_to_array
-
-
 
 def parse_token_string(token_str: str) -> list[int]:
     cleaned = token_str.replace("[", " ").replace("]", " ").replace(",", " ")
@@ -164,34 +161,5 @@ def main():
     else:
         interactive_generate(evaluator)
 
-def main2():
-    "自定义生成音乐，非交互式。需要随时更改参数"
-    if not os.getcwd().endswith("src"):
-        os.chdir("src")
-    model_path = "./transformer/checkpoints_gpt/music_gpt_standard.pth"
-    device="cuda" if torch.cuda.is_available() else "cpu"
-    max_new = 1024
-    temperature = 1.0
-    top_k = 30
-    beats_per_bar = 4
-    out_path = "example_outputs/transformer_generated/generated_7.wav"
-    # if os.path.exists(out_path):
-    #     raise FileExistsError(f"{out_path} already exists, please change the output path to avoid overwriting.")
-    if not MUSICREP_AVAILABLE:
-        raise ImportError("MusicRep not available, cannot run main2().")
-
-    # 将初始音频序列写在这里
-    prompt_tokens = jianpu_to_array("5 6 5 3 - 2 3 5 - 0 5 5 6 5 3 - 2 3 5 -", base_pitch=60+2)
-
-    evaluator = GPTMusicEvaluator(model_path=model_path, device=device)
-    generated = evaluator.generate(
-        prompt_sequence=prompt_tokens,
-        max_new_tokens=max_new,
-        temperature=temperature,
-        top_k=top_k,
-    )
-    render_if_available(generated, out_path, bpm=120, beats_per_bar=beats_per_bar)
-
 if __name__ == "__main__":
     main()
-    # main2()
