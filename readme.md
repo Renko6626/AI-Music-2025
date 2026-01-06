@@ -20,29 +20,24 @@
   - [音乐基础(MusicRep库)](#音乐基础musicrep库)
   - [遗传算法(GA库)](#遗传算法ga库)
   - [Transformer模型(Transformer库)](#transformer模型transformer库)
-  - [GPT增强Crossover和Mutator](#gpt增强crossover和mutator)
+  - [GPT增强的GA组件](#gpt增强的ga组件)
+  - [导入全部](#导入全部)
 - [自己组装](#自己组装)
-- [高级使用](#高级使用)
-  - [自定义遗传算法规则](#自定义遗传算法规则)
-  - [自定义输出格式](#自定义输出格式)
-    - [输出为音频](#输出为音频)
+- [运行和输出](#运行和输出)
+  - [运行](#运行)
+  - [输出为WAV音频](#输出为wav音频)
     - [输出为MIDI序列](#输出为midi序列)
     - [输出为五线谱](#输出为五线谱)
-  - [输入初始音频序列的方式](#输入初始音频序列的方式)
-    - [以数组形式输入](#以数组形式输入)
-    - [以简谱字符串形式输入](#以简谱字符串形式输入)
 - [项目结构](#项目结构)
   - [项目结构总体概述](#项目结构总体概述)
   - [MusicRep库](#musicrep库)
     - [核心类和函数](#核心类和函数)
   - [GA 库](#ga-库)
-    - [主要类](#主要类)
     - [快速示例](#快速示例)
-    - [深度模型对接思路](#深度模型对接思路)
   - [transformer库](#transformer库)
     - [核心代码](#核心代码)
     - [运行/示例](#运行示例)
-  - [VAE库](#vae库)
+  - [VAE库（旧）](#vae库旧)
     - [核心代码](#核心代码-1)
     - [运行/示例](#运行示例-1)
 - [分工和致谢](#分工和致谢)
@@ -113,69 +108,128 @@
 
 ### 音乐基础(MusicRep库)
 
-- 网格数据：一个numpy整数数组或Python整数列表。每个元素代表一个时间步（八分音符），值为MIDI音高编号或休止/延音标记（0/1），典型长度为32（4小节×4拍×八分音符）。
-- MelodySequence类（来自`MusicRep/melody_sequence.py`）：封装了网格数据的类，提供了多种转换和渲染方法，如导出MIDI、渲染WAV、生成五线谱等。
-- Synthesizer类（来自`MusicRep/synthesizer.py`）：一个简易的纯Python合成器，支持多种音色策略，可将网格数据直接渲染为WAV音频文件。音色策略包括正弦波、方波和拨弦等，需要从`MusicRep.synthesizer`导入。
-- MusicConfig类（来自`MusicRep/music_config.py`）：定义了音乐表示的常数，如音域范围、节拍信息等。一般情况下不需要修改，如何你需要调整你生成的音乐的基本属性，可以修改这个类中的常数。
-- fixGrid函数（来自`MusicRep/fix_grid.py`）：一个辅助函数，用于修复网格数据中的语法错误，如孤立的延音符号等。遗传算法引擎的构造函数总是需要传入这个函数作为参数。
+- **网格数据**：一个numpy整数数组或Python整数列表。每个元素代表一个时间步（八分音符），值为MIDI音高编号或休止/延音标记（0/1），典型长度为32（4小节×4拍×八分音符）。
+- **MelodySequence类**（来自`MusicRep/melody_sequence.py`）：封装了网格数据的类，提供了多种转换和渲染方法，如导出MIDI、渲染WAV、生成五线谱等。
+- **Synthesizer类**（来自`MusicRep/synthesizer.py`）：一个简易的纯Python合成器，支持多种音色策略，可将网格数据直接渲染为WAV音频文件。音色策略包括正弦波、方波和拨弦等，需要从`MusicRep.synthesizer`导入。
+- **MusicConfig类**（来自`MusicRep/music_config.py`）：定义了音乐表示的常数，如音域范围、节拍信息等。一般情况下不需要修改，如何你需要调整你生成的音乐的基本属性，可以修改这个类中的常数。
+- **fixGrid函数**（来自`MusicRep/fix_grid.py`）：一个辅助函数，用于修复网格数据中的语法错误，如孤立的延音符号等。遗传算法引擎的构造函数总是需要传入这个函数作为参数。
 
 ### 遗传算法(GA库)
 
-- MusicIndividual类（来自`GA/ga_framework.py`）：遗传算法中的个体类，封装了网格数据和适应度分数。遗传算法的种群由多个MusicIndividual实例组成。
-- MultiRuleEvaluator类（来自`GA/ga_framework.py`）：多规则评估器，允许用户组合多个评价规则来评估个体的适应度。可以通过`register`方法添加自定义规则函数，并为每个规则分配权重。
-- 类（来自`GA/ga_framework.py`）：遗传算法中的变异调度器，定义了如何对个体进行变异操作。可以自定义变异策略，如移调、倒影、点变异等。基础的变异策略可以从`GA/default_mutators.py`导入，自定义变异策略需要继承MutationStrategy类。
+- **MusicIndividual类**（来自`GA/ga_framework.py`）：遗传算法中的个体类，封装了网格数据和适应度分数。遗传算法的种群由多个MusicIndividual实例组成。
+- **MultiRuleEvaluator类**（来自`GA/ga_framework.py`）：多规则评估器，允许用户组合多个评价规则来评估个体的适应度。可以通过`register`方法添加自定义规则函数，并为每个规则分配权重。
+- **MutationScheduler类**（来自`GA/ga_framework.py`）：遗传算法中的变异调度器。可以自定义变异策略，如移调、倒影、点变异等。基础的变异策略可以从`GA/default_mutators.py`导入，自定义变异策略需要继承MutationStrategy类。
 - TournamentSelection类（来自`GA/ga_framework.py`）：锦标赛选择器。一般不需要修改，如果需要自定义选择策略，可以继承SelectionStrategy类。
 - OnePointCrossover类（来自`GA/default_crossovers.py`）：单点交叉操作。一般不需要修改，如果需要自定义交叉策略，可以继承CrossoverStrategy类。
-- GAEngine类（来自`GA/ga_framework.py`）：遗传算法引擎，负责整个遗传算法的运行流程。所有的遗传算法相关操作都以这个类为中心进行。
+- **GAEngine类**（来自`GA/ga_framework.py`）：遗传算法引擎，负责整个遗传算法的运行流程。所有的遗传算法相关操作都以这个类为中心进行。
 
 ### Transformer模型(Transformer库)
 
-- tokens序列：一个整数列表，和网格数据一样，表示音乐旋律。可以通过`MelodySequence.to_remi_tokens()`方法从网格数据生成tokens序列，也可以调用`transformer.tokens_to_melodygrid()`函数将tokens序列转换回网格数据。
+- **tokens序列**：一个整数列表，和网格数据一样，表示音乐旋律。可以通过`MelodySequence.to_remi_tokens()`方法从网格数据生成tokens序列，也可以调用`transformer.tokens_to_melodygrid()`函数将tokens序列转换回网格数据。
 - MusicGPT类（来自`transformer/model.py`）：一个torch神经网络模型。
-- GPTMusicEvaluator类（来自`transformer/gpt_evaluator.py`）：将预训练的MusicGPT模型封装为遗传算法可用的评估器。提供了批量评估和生成方法，可以直接用于遗传算法的适应度评估和变异操作。
+- **GPTMusicEvaluator类**（来自`transformer/gpt_evaluator.py`）：将预训练的MusicGPT模型封装为遗传算法可用的评估器。提供了批量评估和生成方法，可以直接用于遗传算法的适应度评估和变异操作。
 
-### GPT增强Crossover和Mutator
+### GPT增强的GA组件
 
-- StructureAwareCrossover类（来自`src/gpt_crossover.py`）：只在小节线处分割交叉点的交叉操作。
-- GPTLogitMixingCrossover类（来自`src/gpt_crossover.py`）：基于GPT模型的软引导融合交叉操作。它利用GPT模型的预测分布来指导交叉过程，生成更符合音乐语义的后代个体。
-- CompositeCrossover类（来自`src/gpt_crossover.py`）：复合交叉操作。它结合了传统的单点交叉和GPT引导的交叉，先进行单点交叉，然后再应用GPT引导的融合交叉，以增强后代个体的音乐性。如果你需要使用GPT增强的交叉，你可能只需要关注此类。
-- GPTSuffixMutation类（来自`src/gpt_mutators.py`）：基于GPT模型的后缀生成变异操作。它利用GPT模型根据个体的前缀部分生成新的后缀，从而实现变异。
-- GPTRejectionSamplingMutation类（来自`src/gpt_mutators.py`）：基于GPT模型的拒绝采样变异操作。它使用GPT模型生成候选变异，并根据适应度分数决定是否接受该变异。
-- GPTVerifiedPointMutation类（来自`src/gpt_mutators.py`）：基于GPT模型的验证点变异操作。它在进行点变异时，利用GPT模型评估变异后的个体，如果适应度提高则接受变异，否则拒绝。
-- create_gpt_objective函数（来自`src/gpt_rule.py`）：基于一个GPT模型，创建一个归一化后的 GPT 评分函数。
+- **StructureAwareCrossover类**（来自`src/gpt_crossover.py`）：只在小节线处分割交叉点的交叉操作。
+- **GPTLogitMixingCrossover类**（来自`src/gpt_crossover.py`）：基于GPT模型的软引导融合交叉操作。它利用GPT模型的预测分布来指导交叉过程，生成更符合音乐语义的后代个体。
+- **CompositeCrossover类**（来自`src/gpt_crossover.py`）：复合交叉操作。它结合了传统的单点交叉和GPT引导的交叉，先进行单点交叉，然后再应用GPT引导的融合交叉，以增强后代个体的音乐性。如果你需要使用GPT增强的交叉，你可能只需要关注此类。
+- **GPTSuffixMutation类**（来自`src/gpt_mutators.py`）：基于GPT模型的后缀生成变异操作。它利用GPT模型根据个体的前缀部分生成新的后缀，从而实现变异。
+- **GPTRejectionSamplingMutation类**（来自`src/gpt_mutators.py`）：基于GPT模型的拒绝采样变异操作。它使用GPT模型生成候选变异，并根据适应度分数决定是否接受该变异。
+- **GPTVerifiedPointMutation类**（来自`src/gpt_mutators.py`）：基于GPT模型的验证点变异操作。它在进行点变异时，利用GPT模型评估变异后的个体，如果适应度提高则接受变异，否则拒绝。
+- **create_gpt_objective函数**（来自`src/gpt_rule.py`）：基于一个GPT模型，创建一个归一化后的 GPT 评分函数。
+
+### 导入全部
+
+在使用这些类和函数之前，你需要先导入对应的模块。以下代码一次性导入了以上全部在遗传作曲中可能会用到的类和函数：
+
+``` python
+from MusicRep import (
+    MelodySequence, 
+    Synthesizer,
+    MusicConfig,
+    SineStrategy,
+    fixGrid
+)
+from GA.ga_framework import (
+    GAEngine, 
+    MutationScheduler, 
+    MultiRuleEvaluator, 
+    Individual, 
+    SelectionStrategy, 
+    CrossoverStrategy, 
+    MutationStrategy,
+    TournamentSelection,
+    MusicIndividual
+)
+from GA.default_mutators import (
+    TranspositionMutation,
+    InversionMutation,
+    PointMutation
+)
+from GA.default_crossovers import OnePointCrossover
+from GA.default_evaluator import (
+    BasicRules,
+    PentatonicEvaluator,
+    ClassicalEvaluator,
+    build_basic_evaluator,
+    build_pentatonic_evaluator,
+    build_classical_evaluator
+)
+from transformer.gpt_evaluator import GPTMusicEvaluator
+from gpt_rule import create_gpt_objective
+from gpt_mutators import (
+    GPTSuffixMutation, 
+    GPTRejectionSamplingMutation, 
+    GPTVerifiedPointMutation
+)
+from gpt_crossover import (
+    StructureAwareCrossover, 
+    GPTLogitMixingCrossover, 
+    CompositeCrossover
+)
+```
+
+如果你的程序主入口在项目根目录下，而不是在`src/`文件夹中，你需要在导入语句前加上以下代码，以确保Python解释器能够正确找到这些模块：
+
+``` python
+import sys
+import os
+sys.path.append(os.path.join(os.path.dirname(__file__), 'src'))
+```
 
 ## 自己组装
 
 组装一个遗传算法作曲系统需要包含以下必须要素：
-- 评价器（Evaluator）：用于评估个体适应度的组件，通常是一个MultiRuleEvaluator类，结合多个评价规则。这些评价规则可以：
+- **评价器（Evaluator）**：用于评估个体适应度的组件，通常是一个MultiRuleEvaluator类，结合多个评价规则。这些评价规则可以：
   - 在`MusicRep.evaluator`中预定义，包括基础、五声或古典规则；
   - 由将GPTMusicEvaluator类输入到create_gpt_objective函数中得到，利用预训练的Transformer模型进行评估；
-  - 是任何一个输入网格数据，输出一个0到1之间浮点数的自定义函数。
-- 变异器（Mutator）：用于对个体进行变异操作的组件，这些组件需要注册在一个额外的MutationScheduler调度器中。可以：
+  - 是任何一个函数，输入网格数据，输出一个0到1之间浮点数分数（越高越好）。
+- **变异器（Mutator）**：用于对个体进行变异操作的组件，这些组件需要注册在一个额外的MutationScheduler调度器中。可以：
   - 使用基础的变异策略，如移调、倒影和点变异，来自`GA/default_mutators.py`；
   - 使用GPT增强的变异策略，如GPTSuffixMutation、GPTRejectionSamplingMutation和GPTVerifiedPointMutation，来自`src/gpt_mutators.py`；
   - 继承于`GA.ga_framework`中的MutationStrategy类，编写自定义变异策略。
-- 交叉器（Crossover）：用于生成后代个体的组件。可以：
+- **交叉器（Crossover）**：用于生成后代个体的组件。可以：
   - 使用基础的OnePointCrossover类，进行单点交叉；
   - 使用StructureAwareCrossover类，只在小节线处分割交叉点；
   - 使用GPTLogitMixingCrossover类，进行GPT引导的融合交叉；
   - 使用CompositeCrossover类，将多种交叉策略结合起来使用；
   - 继承于`GA.ga_framework`中的CrossoverStrategy类，编写自定义交叉策略。
-- 选择器（Selector）：用于从当前种群中选择个体进行繁殖的组件。可以：
+- **选择器（Selector）**：用于从当前种群中选择个体进行繁殖的组件。可以：
   - 使用基础的TournamentSelection类，进行锦标赛选择；
   - 继承于`GA.ga_framework`中的SelectionStrategy类，编写自定义选择策略。
-- 个体工厂：一个用于生成初始个体的函数，没有输入参数，返回一个MusicIndividual实例。
+- **“个体工厂”(Individual Factory)**：一个用于生成初始个体的函数，没有输入参数，返回一个MusicIndividual实例。
   - 很遗憾，没有现成的个体工厂可以直接使用。你需要自己编写一个函数。
   - 一个最为简单的个体工厂可以在一行以内实现：`individual_factory = lambda: MusicIndividual(fixgrid(MelodySequence.from_random().grid))`，它会生成一个随机旋律作为个体。
   - 更好的做法是，先随机生成开始的几个音，然后使用GPTMusicEvaluator类中的`generate`方法续写剩余音符，生成更有音乐性的初始个体。可以参考`src/hybrid_evaluation.py`中的第247~273行代码。
 
-在准备好这些组件后，你还需要小小地纠结一下，确定一些参数：
+在准备好这些组件后，你还需要小小地纠结一下，确定以下参数：
 
-- 种群大小（pop_size）：每一代中个体的数量，通常在20到100之间。
+- **种群大小**（pop_size）：每一代中个体的数量，通常在20到100之间。
   - 种群大小越大，搜索空间越广，最终得到的旋律越好，但计算开销也越大。
-- 迭代轮数（n_generations）：遗传算法运行的总轮数，一般取为100。
+- **迭代轮数**（n_generations）：遗传算法运行的总轮数，一般取为100。
   - 基本原则是，当适应度不再发生变化时，种群可能丧失了多样性，算法可以停止。
-- 精英比例（elite_ratio）：每一代中保留的精英个体比例，通常在0.05到0.2之间。
+- **精英比例**（elite_ratio）：每一代中保留的精英个体比例，通常在0.05到0.2之间。
   - 该参数决定了每一代中最优秀的个体有多少会直接传递到下一代，
   - 如果设置过高，可能导致种群过早收敛，失去多样性；
   - 如果设置过低，则可能导致优秀基因丢失，收敛变慢。
@@ -199,54 +253,28 @@ engine = GAEngine(
 
 
 
-## 高级使用
+## 运行和输出
 
-### 自定义遗传算法规则
+### 运行
 
-1) 写一个函数, 这个函数应该接受一个数组（形状为 `(32,)` 的 numpy 数组），返回一个浮点数分数（越高越好）。例如在 `GA/evaluator.py` 里添加：
-```python
-def prefer_steps(grid: np.ndarray) -> float:
-    """更喜欢级进（小于等于全音的音程）。"""
-    notes = grid[grid > 1]
-    if len(notes) < 2:
-        return 0.0
-    small = np.sum(np.abs(np.diff(notes)) <= 2)
-    # 分数归一化到0到1之间
-    return small / (len(notes) - 1)
-```
+- 直接调用`engine.run()`。这个方法最省时省力，它将运行遗传算法，直接返回最终的最优个体。
+- 在一个循环中反复调用`engine.step(generation_idx)`。这个方法允许你手动控制遗传算法的每一代运行过程。使用该方法，你可以提前终止，或者在超过设定代数之后继续运行；你也可以获得每一代中的非最优个体，评估整个种群的适应度分布……一切只限制于你的想象力。
 
-开发者在此建议，自定义规则返回的分数应当最好在0到1之间。
 
-1) 在你的脚本里把这条规则加进去并给权重，例如在 `example_ga.py`：
-```python
-from GA.evaluator import RuleBasedEvaluator, BasicRules
+### 输出为WAV音频
 
-rb = RuleBasedEvaluator()\
-    .add_rule(BasicRules.pitch_in_key_c_major, weight=1.0)\
-    .add_rule(BasicRules.rhythmic_variety, weight=0.5)\
-    .add_rule(BasicRules.smooth_contour, weight=0.5)\
-    .add_rule(prefer_steps, weight=0.8)  # 新规则
-```
-3) 运行 `example_ga.py` 或你的脚本，算法会用新规则打分进化。
-
-### 自定义输出格式
-
-...
-
-#### 输出为音频
+将网格数据渲染为WAV音频，可以使用两种方法：
+1. 使用MusicRep库中的MelodySequence类的`render_wav`方法，将MIDI序列渲染为WAV音频。该方法依赖于`midi2audio`和`fluidsynth`，需要在系统中安装FluidSynth声卡驱动，并提供一个SoundFont文件路径。这个方法可以生成高质量的音频，但需要额外的依赖和配置，尽量不要使用。
+2. 使用MusicRep库中的Synthesizer类，将网格数据直接渲染为WAV音频。该方法是纯Python实现的简易合成器，不依赖外部声卡驱动，适合在无声卡环境下使用。虽然音质不如第一种方法，但足以满足基本需求。
 
 #### 输出为MIDI序列
 
+- 使用MelodySequence类的`save_midi(path)`方法，将网格数据保存为MIDI文件。该方法会自动合并延音符号，生成符合MIDI标准的文件。
+- 如果需要再后续交由专业的DAW软件处理该旋律片段，可以使用该方法输出MIDI序列。
+
 #### 输出为五线谱
 
-### 输入初始音频序列的方式
-
-#### 以数组形式输入
-
-#### 以简谱字符串形式输入
-
-
-
+- 使用MelodySequence类的`render_staff(output)`方法，将网格数据渲染为五线谱图像。该方法依赖于`music21`库，并且需要配置外部环境（MuseScore或LilyPond）来生成图像文件。
 
 ## 项目结构
 
@@ -263,16 +291,16 @@ rb = RuleBasedEvaluator()\
     - `default_mutators.py`：定义了移调、倒影和点变异。
 - `transformer/`：包含GPT评估器、模型定义、训练脚本和数据预处理，主要用于生成旋律片段和辅助遗传算法种群初始化。
     - `model.py`：MusicGPT 模型定义。
-    - `train.py`：GPT 训练脚本与数据集切片加载器。
-    - `gpt_evaluator.py`：将训练好的 MusicGPT 封装为 GA 适用的评估器/生成器，支持 `evaluate()` 批量打分与 `generate()` 续写旋律。
+    - `trainv2.py`：GPT 训练脚本与数据集切片加载器。
+    - `gpt_evaluator.py`：GPT 评估器，将预训练的 GPT 模型封装为遗传算法可用的评估器。
     - `dataset/preprocess.py`：从 MIDI 提取主旋律，生成 GPT 训练数据集。
     - `final_models/MelodyGPT_nano.pth`：Nano模型权重。Nano模型更小更快，直接参与评估旋律的好坏，也用于拒绝采样变异和微调变异。
     - `final_models/MelodyGPT_standard.pth`：Standard模型权重。Standard模型生成的旋律更丰富，用于后缀生成变异和软引导融合交叉。
-- `VAE/`：基于 GRU 的变分自编码器与评估
-    - `vae_evaluator.py`：加载训练好的 GRU-VAE，计算潜空间风格相似度评分。
-    - `model/`：`gru.py` 定义 GRU-VAE 主体。
-    - `train/`：数据预处理、模型训练与日志（tensorboard events）存放位置。
-
+    - 其它文件：辅助脚本和模块，如token与网格转换等。与遗传算法无关，可以忽略。
+- `VAE/`：基于 GRU 的变分自编码器与评估（已弃用）
+  - `vae_evaluator.py`：加载训练好的 GRU-VAE，计算潜空间风格相似度评分。
+  - `model/`：`gru.py` 定义 GRU-VAE 主体。
+  - `train/`：数据预处理、模型训练与日志（tensorboard events）存放位置。
 
 ### MusicRep库
 
@@ -296,9 +324,9 @@ MusicRep 是一个用于表示和处理旋律的python库，它支持我们将�
     - 指定合成音色：
         - 在创建时传入 `strategy` 参数，选择不同的合成策略（如正弦波、方波、拨弦等）。
     - 可选策略：
-        - `SineStrategy`：正弦波合成。
-        - `SquareStrategy`：方波合成。
-        - `StringStrategy`：简易拨弦合成，模拟吉他/弦乐器音色。
+        - `SineStrategy`：合成正弦波和对应的谐波，模拟琴类乐器。
+        - `SquareStrategy`：合成方波，模拟一些电子合成器。
+        - `StringStrategy`：模拟拨弦，模拟吉他等弦乐器音色。
     - 主要方法：
         - `render(grid_sequence, bpm=120, output_path="output.wav")`：将 0/1/音高网格直接合成为 WAV。
 
@@ -307,40 +335,46 @@ MusicRep 是一个用于表示和处理旋律的python库，它支持我们将�
 
 ### GA 库
 
-#### 主要类
-- `MusicGeneticOptimizer`（`GA/ga_engine.py`）：面向音乐网格（32 步）的遗传算法优化器。
-    - 参数：`pop_size` 种群大小，`n_generations` 迭代轮数，`mutation_rate` 点变异概率，`elite_ratio` 精英保留比例（内部至少保留 1 个精英），`evaluator_model` 可接入深度模型批量评估。
-    - 方法：`fit(verbose=True)` 运行进化；`predict()` 返回当前最优解对应的 `MelodySequence`。
-    - 细节：交叉/变异后会调用 `fixGrid` 修复不合法片段；移调变异检查音域上下界，避免越界；批量评估接口预留给深度模型。
-
-- `MusicEvaluator` / `RuleBasedEvaluator`（`GA/evaluator.py`）：评估器接口与加权规则评估实现。
-    - `add_rule(fn, weight)` 注册规则函数（输入单个 grid，返回分数），支持链式调用。
-    - `evaluate(population_grid)` 输入 `(pop_size, 32)` 的 numpy 数组，返回分数数组。
-
-- `BasicRules`（`GA/evaluator.py`）：示例规则（C 大调内音奖励、节奏多样性、平滑音程）。
+- `ga_framework.py`：遗传算法框架，包含遗传算法引擎和对接遗传算法的所有接口类，并额外实现了其中的一部分。
+  - 类 `GAEngine`：遗传算法引擎，负责整个遗传算法的运行流程。
+    - `run()`：运行完整的遗传算法，返回最终的最优个体。
+    - `step(generation_idx)`：运行一代遗传算法，允许手动控制每一代的运行过程。
+  - 接口抽象类：包括个体类`MusicIndividual`、变异策略接口`MutationStrategy`、选择策略接口`SelectionStrategy`、交叉策略接口`CrossoverStrategy`等。
+  - 类 `MultiRuleEvaluator`：多规则评估器，允许用户组合多个评价规则来评估个体的适应度。
+  - 类 `MutationScheduler`：变异调度器，允许用户注册多个变异策略，并在遗传过程中随机选择应用。
+  - 类 `TournamentSelection`：锦标赛选择器，实现了基于锦标赛的个体选择策略。
+- `evaluator.py`：基于`ga_framework.py`中定义的框架，构建了多种规则评估器，例如五声调式评估器和古典评估器。
+  - `BasicRules`：基础评估规则集合，包括音高在音域内、节奏多样性、音程平滑等规则。
+  - `PentatonicEvaluator`：五声调式评估器，结合了多个五声调式相关的规则。
+  - `ClassicalEvaluator`：古典评估器，结合了多个古典音乐相关的规则。
+  - `build_basic_evaluator()`：构建一个预设的基础评估器实例。
+  - `build_pentatonic_evaluator()`：构建一个预设的五声调式评估器实例。
+  - `build_classical_evaluator()`：构建一个预设的古典评估器实例。
+- `default_mutators.py`：定义了基础的变异策略，如移调、倒影和点变异。
+  - 类 `TransposeMutation`：移调变异策略，实现了对个体进行随机移调的操作。
+  - 类 `InversionMutation`：倒影变异策略，实现了对个体进行倒影变换的操作。
+  - 类 `PointMutation`：点变异策略，实现了对个体进行随机点变异的操作。
 
 #### 快速示例
 ```python
-from GA.ga_engine import MusicGeneticOptimizer
-from GA.evaluator import RuleBasedEvaluator, BasicRules
+scheduler = MutationScheduler()
+scheduler.register(PointMutation(prob=0.1), weight=10.0, name="PointMut")
 
-rb = RuleBasedEvaluator()\
-        .add_rule(BasicRules.pitch_in_key_c_major, weight=1.0)\
-        .add_rule(BasicRules.rhythmic_variety, weight=0.5)\
-        .add_rule(BasicRules.smooth_contour, weight=0.5)
+engine = GAEngine(
+    pop_size=100,
+    n_generations=500,
+    evaluator=build_classical_evaluator(),
+    selection_strat=TournamentSelection(k=3),
+    crossover_strat=OnePointCrossover(),
+    mutation_scheduler=scheduler,
+    individual_factory=lambda: MusicIndividual(fixgrid(MelodySequence.from_random().grid)),
+    repair_func=fixGrid,
+    elite_ratio=0.1,
+)
 
-ga = MusicGeneticOptimizer(pop_size=50, n_generations=20, mutation_rate=0.1, elite_ratio=0.1)
-ga.evaluator = rb
-ga.fit(verbose=True)
-
-best = ga.predict()
-best.save_midi("ga_best.mid")
+best_melody_grid = engine.run().data
+MelodySequence(best_melody_grid).save_midi("best_melody.mid")
 ```
-
-#### 深度模型对接思路
-- 在 `MusicGeneticOptimizer._calculate_fitness_batch` 中，将种群网格转 REMI/token，再批量送入深度模型，返回分数并转回 numpy。
-- 建议批量化评估并运行在 GPU；示例代码已预留伪代码位置。
-
 
 ### transformer库
 
@@ -374,8 +408,10 @@ scores = eva.evaluate(pop_grid)  # pop_grid: [B, T]
 new_seq = eva.generate([130], max_new_tokens=128, temperature=1.0, top_k=20)
 ```
 
-### VAE库
-GRU 版离散序列 VAE，学习旋律潜空间并用“风格距离”给 GA 打分，附带 Transformer-VAE 备选实现。
+### VAE库（旧）
+
+- GRU 版离散序列 VAE，学习旋律潜空间并用“风格距离”给 GA 打分，附带 Transformer-VAE 备选实现。
+- 但是VAE模型的**表现非常差**，远不如GPT模型，因此**已弃用**。这里仍然保留该模块的代码，供有兴趣的同学参考。
 
 #### 核心代码
 - `model/gru.py`和`train/preprocess.py`：数据预处理。读取一个MIDI文件，生成增强后的数据，保存到文件。
@@ -406,4 +442,23 @@ score = eva.get_style_fitness(your_seq)
 - 感谢全体组员容忍我写出如此抽象的致谢skr\~。
 - 骇死助教！！！
 -->
+
+- (组长)孙韫博：
+  - 开发遗传算法引擎
+  - 提出TAGA架构和相应变异与遗传算子
+  - 在服务器上训练Transformer模型并进行测试
+  - 编写了文章中算法架构的部分
+- 夏省玘：
+  - 协助开发完善代码，撰写说明文档
+  - 进行消融实验测试
+  - 编写了乐谱的可视化程序
+- 邵柏睿：
+  - 构建符合乐理的遗传算法规则，完善传统遗传算法程序
+  - 纯遗传算法部分的实验和文章撰写
+- 赵泽凯：
+  - 编写文章的结论部分
+  - 排版并修改润色文章
+- 于秋雨：
+  - 文章的导论与背景部分
+  - 相关领域的文献调研
 
