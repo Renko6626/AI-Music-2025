@@ -6,13 +6,6 @@ from typing import Tuple, List
 from GA.ga_framework import CrossoverStrategy, Individual
 from transformer.gpt_evaluator import GPTMusicEvaluator
 
-# 假设你的个体类是 MusicIndividual
-# 为了类型提示方便，这里引用一下，实际运行时动态传入即可
-try:
-    from main_modular import MusicIndividual
-except ImportError:
-    pass # 忽略导入错误，只要接口一致即可
-
 class StructureAwareCrossover(CrossoverStrategy):
     """
     【结构感知交叉】

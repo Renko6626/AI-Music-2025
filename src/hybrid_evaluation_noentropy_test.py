@@ -528,7 +528,7 @@ def plot_ga():
     plt.close()
 
 if __name__ == "__main__":
-    # run_ga_naive()
-    # run_ga_robust()
+    run_ga_naive()
+    run_ga_robust()
     plot_ga()
     # print(np.load(os.path.join(OUTPUT_DIR, 'evolution_records.npz'))['samples'][-1].tolist())

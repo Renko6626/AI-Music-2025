@@ -228,7 +228,7 @@ class MelodySequence:
             from music21 import stream, note, meter, tempo, instrument, key
         except ImportError as e:
             print("未能导入Music21", e)
-            return
+            return False
         from GA.evaluator import ClassicalRules
         best_tonic, best_mode, _ = ClassicalRules._best_key_major_or_harmonic_minor(self.grid)
 
@@ -238,7 +238,7 @@ class MelodySequence:
         part = stream.Part()
         part.append(instrument.Piano())
         # 添加拍号与速度
-        ts = meter.TimeSignature(f"{MusicConfig.BEATS_PER_BAR}/4")
+        ts = meter.TimeSignature(f"{MusicConfig.BEATS_PER_BAR}/{MusicConfig.STEPS_PER_BEAT*2}")
         part.append(ts)
         mm = tempo.MetronomeMark(number=MusicConfig.TEMPO)
         part.append(mm)
@@ -332,14 +332,17 @@ class MelodySequence:
             except:
                 pass
             print(f"Saved staff image to {output}")
+            return True
         except Exception as e:
             print(f"Failed to render staff PNG: {e}. Will try writing MusicXML instead.")
             try:
                 xml_path = os.path.splitext(output)[0] + '.xml'
                 score.write('musicxml', fp=xml_path)
                 print(f"Saved MusicXML to {xml_path}. Install MuseScore or LilyPond to export PNG.")
+                return True
             except Exception as e2:
                 print(f"Failed to write MusicXML: {e2}")
+            return False
 
 # ==========================================
 # 3. 单元测试模块
