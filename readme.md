@@ -40,6 +40,12 @@
   - [VAE库（旧）](#vae库旧)
     - [核心代码](#核心代码-1)
     - [运行/示例](#运行示例-1)
+- [数据集与复现](#数据集与复现)
+  - [三份数据集一览](#三份数据集一览)
+  - [路线 A：GigaMIDI](#路线-agigamidi)
+  - [路线 B：古典 MIDI](#路线-b古典-midi)
+  - [路线 C：GiantMIDI-Piano](#路线-cgiantmidi-piano)
+  - [删掉了哪些文件](#删掉了哪些文件)
 - [分工和致谢](#分工和致谢)
 
 ## 项目概述
@@ -432,6 +438,155 @@ eva = MusicEvaluator("checkpoints/vae_gru_bach_v2_best.pth")
 eva.set_target_style(torch.load("classical_dataset.pt")[:1024])
 score = eva.get_style_fitness(your_seq)
 ```
+
+## 数据集与复现
+
+> **本项目已结课。** 为节省磁盘空间，所有原始数据集与预处理中间产物已于 2026-09-22 从工作目录清除
+> （共约 24.8 GB）。代码、训练日志和模型权重都原样保留
+> （`transformer/checkpoints_gpt/`、`transformer/final_models/`、`VAE/train/checkpoints/`）。
+> **预处理脚本一个没动，路径也没变**，照下面的步骤重新拉一次数据就能复现全部训练。
+
+### 三份数据集一览
+
+| 数据集 | 出处 | 许可 | 谁在用 |
+| --- | --- | --- | --- |
+| **GigaMIDI v2.0.0** | HuggingFace [`Metacreation/GigaMIDI`](https://huggingface.co/datasets/Metacreation/GigaMIDI)。**gated**：要先在数据集页面填表、勾同意条款才能下载 | CC BY-NC 4.0，仅限非商业的研究与教学 | `trainv2.py` 的 nano / standard / heavy / v3_final 四档 |
+| **MIDI Classical Music**（4796 个古典 MIDI） | HuggingFace [`drengskapur/midi-classical-music`](https://huggingface.co/datasets/drengskapur/midi-classical-music)，当年是从 `hf-mirror.com` 镜像克隆的 | MIT | VAE 全部模型，以及 transformer 的早期古典模型 |
+| **GiantMIDI-Piano**（`surname_checked_midis` v1.2，7237 个钢琴 MIDI） | 归档名 `surname_checked_midis_v1.2.zip`，包内文件日期 2022-01-20 | 见上游 | `train.py` 训出的 `music_gpt_v1_*` |
+
+### 路线 A：GigaMIDI
+
+主力模型（`music_gpt_gigamidi_v3_*`）走的就是这条线，也是最大的一份，原始数据约 22 GB。
+
+1. 在 HuggingFace 上通过 `Metacreation/GigaMIDI` 的 gated 申请，然后 `huggingface-cli login`。
+2. 下载两个文件到 `src/transformer/dataset/gigamidi/`：
+   - `Final_GigaMIDI_V2.0_Final.zip`（5.1 GB）
+   - `Final-Metadata-Extended-GigaMIDI-Dataset-updated.csv`（1.2 GB），
+     **下载后必须改名成 `metadata.csv`** —— `preprocess.py` 里 `METADATA_CSV_PATH` 写死了这个名字。
+3. 就地解压。外层 zip 解出来是一个 `Final_GigaMIDI_V1.1_Final/` 目录，里面**还套着三个 zip**，
+   要继续就地解开：
+
+   ```
+   Final_GigaMIDI_V1.1_Final/training-V1.1-80%.zip
+   Final_GigaMIDI_V1.1_Final/test-V1.1-10%.zip
+   Final_GigaMIDI_V1.1_Final/validation-V1.1-10%.zip
+   ```
+
+   解完的层级必须正好长成下面这样，因为 `metadata.csv` 第一列存的就是这个相对路径：
+
+   ```
+   src/transformer/dataset/gigamidi/Final_GigaMIDI_V1.1_Final/training-V1.1-80%/no-drums/4/81a8984f….mid
+   ```
+
+   > ⚠️ **这里最容易踩坑。** `preprocess.py` 里 `DATASET_BASE_DIR = "."`，路径直接拼在 gigamidi
+   > 目录下，而且对找不到的文件是 `continue` 静默跳过的。层级解错了**不会报任何错**，
+   > 只会安静地产出一个几乎是空的数据集。跑完务必拿第 5 步的行数对一下再开训。
+
+4. 生成训练数据集：
+
+   ```bash
+   cd src/transformer/dataset/gigamidi
+   python preprocess.py        # 输出 ./gigamidi_processed_nodrums_v3/
+   ```
+
+   脚本只取路径里同时含 `no-drums` 和 `training`/`test`/`validation` 的条目，用 NOMML 启发式
+   挑主旋律轨（阈值 12），再做清洗：最短 32 token、最多 8 个连续休止、音符密度 ≥0.3、
+   音高种类 ≥5、音域限定 A0–C8（21–108）。输出是 HF `datasets` 的 `save_to_disk` 格式。
+   `gigamidi_processed_nodrums` 和 `_v2` 是同一个脚本改参数跑出来的早期版本。
+
+5. **对数基准**（当年 v3 的实际产出，共 256 MB）：
+
+   | split | 行数 | 大小 |
+   | --- | --- | --- |
+   | train | 122,530 | 204 MB |
+   | test | 15,125 | 26 MB |
+   | validation | 15,312 | 26 MB |
+
+6. 训练：`python src/transformer/trainv2.py`
+
+   `trainv2.py` 里 `CONFIG_nano` / `CONFIG_standard` / `CONFIG_heavy` 的 `data_path` 都指向
+   `./dataset/gigamidi/gigamidi_processed_nodrums_v3`；但 `CONFIG_v3`（`music_gpt_gigamidi_v3_final`）
+   指向的是**不带后缀**的 `gigamidi_processed_nodrums`，要复现那一档得先把目录名对上。
+   第 130 行的 `CONFIG=CONFIG_heavy` 决定实际跑哪一档。
+
+### 路线 B：古典 MIDI
+
+VAE 和 transformer 的早期古典模型共用这份。注意当年它在仓库里存了**两份一模一样的拷贝**
+（`transformer/dataset/data/` 和 `VAE/train/midi_dataset_local/data/`，都是 4796 个同名文件），
+重建时拉一份、另一处做软链接就行。
+
+1. 拉数据集：
+
+   ```bash
+   cd src/VAE/train
+   git clone https://huggingface.co/datasets/drengskapur/midi-classical-music midi_dataset_local
+   # 当年走的是镜像：https://hf-mirror.com/datasets/drengskapur/midi-classical-music
+   ```
+
+   > `src/VAE/train/midi_dataset_local` 现在是个**空目录占位**。它当年被误当作 gitlink
+   > （mode 160000，且没有 `.gitmodules`）提交进了仓库，所以这个空壳必须留着，否则
+   > `git status` 会一直显示一条删除。`git clone` 允许克隆进已存在的空目录，直接按上面跑就行。
+
+2. VAE 侧：
+
+   ```bash
+   cd src/VAE/train
+   python preprocess.py     # ./midi_dataset_local/data → classical_dataset.pt（约 690 MB）
+   python train.py
+   ```
+
+3. transformer 侧（早期古典模型）：
+
+   ```bash
+   cd src/transformer/dataset
+   ln -s ../../VAE/train/midi_dataset_local/data ./data    # 或者直接拷一份
+   python preprocess.py     # → classical_gpt_dataset_smart_v2.pt（约 86 MB）
+   ```
+
+   `gpt_evaluator.py` 的自测块要用 `classical_gpt_dataset_smart_v2.pt`；
+   `test_mini_classical.py` 要用 `classical_gpt_dataset_smart.pt`（v1，同一脚本改
+   `OUTPUT_FILE` 跑出来的）。
+
+### 路线 C：GiantMIDI-Piano
+
+`train.py`（注意不是 `trainv2.py`）训出的 `music_gpt_v1_*` 用的是这份。
+
+1. 取到 `surname_checked_midis_v1.2.zip`，解压后把 7237 个 MIDI 放进
+   `src/transformer/dataset/gp_dataset/`。
+2. 预处理：
+
+   ```bash
+   cd src/transformer/dataset
+   python gp_process.py     # → giant_piano_mind_v1.pt（约 1.1 GB）
+   ```
+
+3. 训练：`python src/transformer/train.py --resume latest`
+   （`train.py` 的 `data_path` 写死 `./dataset/giant_piano_mind_v1.pt`。）
+
+### 删掉了哪些文件
+
+列在这里存档，免得以后怀疑是不是丢了东西。
+
+| 路径（相对仓库根） | 大小 | 怎么拿回来 |
+| --- | --- | --- |
+| `src/transformer/dataset/gigamidi/Final_GigaMIDI_V2.0_Final.zip` | 5.1 GB | 路线 A 第 2 步 |
+| `src/transformer/dataset/gigamidi/metadata.csv` | 1.2 GB | 路线 A 第 2 步 |
+| `src/transformer/dataset/gigamidi/train/`、`test/` | 13 GB + 1.6 GB | 路线 A 第 3 步（旧版 V1.1 的解压残留） |
+| `src/transformer/dataset/gigamidi/gigamidi_processed_nodrums{,_v2,_v3}/` | 共 914 MB | 路线 A 第 4 步 |
+| `src/transformer/dataset/data/` | 122 MB | 路线 B 第 3 步 |
+| `src/transformer/dataset/gp_dataset/` + `surname_checked_midis_v1.2.zip` | 197 MB + 129 MB | 路线 C 第 1 步 |
+| `src/transformer/dataset/giant_piano_mind_v1.pt` | 1.1 GB | 路线 C 第 2 步 |
+| `src/transformer/dataset/classical_gpt_dataset_smart{,_v2}.pt` | 共 171 MB | 路线 B 第 3 步 |
+| `src/VAE/train/classical_dataset.pt` | 690 MB | 路线 B 第 2 步 |
+| `src/VAE/train/midi_dataset_local/` | 155 MB | 路线 B 第 1 步 |
+
+**一个都没动的**：全部 `.py`、训练日志（`logs_gpt*/`）、模型权重
+（`transformer/checkpoints_gpt/` 4.3 GB、`transformer/final_models/` 452 MB、
+`VAE/train/checkpoints/` 471 MB），以及 GigaMIDI 的数据卡 `gigamidi/README.md`。
+
+> 📌 `src/transformer/dataset/gigamidi/` 下的 `preprocess.py` 和 `test.py` 原本**不在版本库里**
+> —— `.gitignore` 第 236 行把整个 `gigamidi/` 目录都挡掉了。它们是路线 A 唯一的实现，
+> 已用 `git add -f` 强制入库，以后再清目录不会跟着数据一起消失。
 
 ## 分工和致谢
 
